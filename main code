@@ -1,0 +1,49 @@
+from pathlib import Path
+from pydantic import BaseModel, Field
+import urllib.request
+import re
+
+class ScraperConfig(BaseModel):
+    url: str = Field(..., description="Target webpage URL")
+    output_file: Path = Field(default=Path("scraped_data.txt"), description="Output text file")
+    clean_garbage: bool = Field(default=True, description="Remove HTML tags and extra whitespace")
+
+def scrape_page(config: ScraperConfig) -> bool:
+    try:
+        req = urllib.request.Request(
+            config.url, 
+            headers={'User-Agent': 'Mozilla/5.0'}
+        )
+        with urllib.request.urlopen(req) as response:
+            html = response.read().decode('utf-8', errors='ignore')
+            
+        # Extract title
+        title_match = re.search(r'<title>(.*?)</title>', html, re.IGNORECASE)
+        title = title_match.group(1).strip() if title_match else "No Title"
+        
+        if config.clean_garbage:
+            # Remove scripts, styles and HTML tags
+            clean_html = re.sub(r'<(script|style).*?>.*?</\1>', '', html, flags=re.DOTALL | re.IGNORECASE)
+            clean_text = re.sub(r'<[^>]+>', ' ', clean_html)
+            # Clean up whitespace and empty lines
+            clean_text = re.sub(r'\s+', ' ', clean_text).strip()
+        else:
+            clean_text = html
+
+        output_content = f"URL: {config.url}\nTITLE: {title}\n\nCONTENT:\n{clean_text}"
+        config.output_file.write_text(output_content, encoding="utf-8")
+        
+        print(f"Successfully scraped and cleaned: {title}")
+        return True
+    except Exception as e:
+        print(f"Error scraping URL: {e}")
+        return False
+
+if name == "main":
+    config = ScraperConfig(url="https://example.com")
+    scrape_page(config)
+
+========================================================================================================================================
+#If you need to: customize/upgrade/integrate or just dont wanna to set it by yourself, then just text me.
+#Telegram for work: @Myhamed91
+========================================================================================================================================
